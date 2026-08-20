@@ -1,0 +1,24 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css" integrity="sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js" integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3" crossorigin="anonymous"></script>
+<style>
+    .bookstack-katex-display {
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.katex || typeof window.katex.render !== 'function') {
+            return;
+        }
+
+        document.querySelectorAll('.bookstack-katex-inline, .bookstack-katex-display').forEach(function (element) {
+            window.katex.render(element.textContent || '', element, {
+                displayMode: element.classList.contains('bookstack-katex-display'),
+                throwOnError: false,
+                strict: 'warn',
+                trust: false
+            });
+        });
+    });
+</script>
