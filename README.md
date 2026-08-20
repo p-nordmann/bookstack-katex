@@ -67,6 +67,8 @@ The preview integration does not change the Markdown saved by BookStack. Saved p
 
 The Markdown preview supports display math nested in lists and blockquotes. Its parser reads each line from MarkdownIt's container-adjusted `bMarks + tShift` position so list indentation and blockquote markers do not become part of the TeX. Manual cases are provided in `tests/preview-fixtures.md`.
 
+Display delimiters indented by four or more spaces relative to their current Markdown block remain indented code. A multiline display block must also close before its current list, blockquote, or other indentation container ends.
+
 ## Deferred edge cases
 
 - WYSIWYG editing, server-side KaTeX rendering, and math rendering in exported documents are not included in version 0.2.0.
@@ -90,5 +92,5 @@ Version 0.2.0 relies on BookStack's `commonmark_environment_configure` theme eve
 
 ## Changelog
 
-- 0.2.0: Add direct KaTeX rendering to the Markdown editor preview, including list and blockquote fixtures and safe handling of unclosed display delimiters.
+- 0.2.0: Add direct KaTeX rendering to the Markdown editor preview, including indentation-aware list and blockquote fixtures and safe handling of unclosed display delimiters.
 - 0.1.1: Correct the `InlineParserContext` namespace for League CommonMark 2.8.

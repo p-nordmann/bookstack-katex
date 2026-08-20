@@ -113,6 +113,10 @@
     }
 
     function displayMathRule(state, startLine, endLine, silent) {
+      if (state.sCount[startLine] - state.blkIndent >= 4) {
+        return false;
+      }
+
       var start = state.bMarks[startLine] + state.tShift[startLine];
       var line = state.src.slice(start, state.eMarks[startLine]).trim();
 
@@ -137,7 +141,6 @@
         singleLineToken.markup = "$$";
         singleLineToken.map = [startLine, startLine + 1];
         singleLineToken.content = line.slice(2, -2);
-        singleLineToken.meta = { closed: true };
         state.line = startLine + 1;
 
         return true;
@@ -146,6 +149,13 @@
       var nextLine = startLine + 1;
 
       while (nextLine < endLine) {
+        if (
+          !state.isEmpty(nextLine) &&
+          state.sCount[nextLine] < state.blkIndent
+        ) {
+          return false;
+        }
+
         if (lineSource(state, nextLine).trim() === "$$") {
           break;
         }
@@ -175,7 +185,6 @@
       token.markup = "$$";
       token.map = [startLine, nextLine + 1];
       token.content = contentLines.join("\n");
-      token.meta = { closed: true };
       state.line = nextLine + 1;
 
       return true;
@@ -211,7 +220,7 @@
         { alt: ["text"] },
       );
       markdownIt.block.ruler.before(
-        "paragraph",
+        "lheading",
         "bookstack_katex_display",
         displayMathRule,
         { alt: ["paragraph", "reference", "blockquote", "list"] },
@@ -222,7 +231,7 @@
         index,
       ) {
         return (
-          '<span class="bookstack-katex-inline" data-bookstack-katex-rendered>' +
+          '<span class="bookstack-katex-inline">' +
           renderPreviewMath(markdownIt, tokens[index].content, false) +
           "</span>"
         );
@@ -234,7 +243,7 @@
       ) {
         var token = tokens[index];
         return (
-          '<div class="bookstack-katex-display" data-bookstack-katex-rendered>' +
+          '<div class="bookstack-katex-display">' +
           renderPreviewMath(markdownIt, token.content, true) +
           "</div>\n"
         );

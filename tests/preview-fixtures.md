@@ -40,3 +40,24 @@ x + y
 This paragraph must remain visible in the preview.
 
 Expected: No display-math token is produced. The unmatched `$$` and following content are handled as ordinary Markdown; the heading and paragraph are not swallowed by the math rule.
+
+## Four-space indented code
+
+    $$
+    x = y
+    $$
+
+Expected: The entire example remains an indented code block and no display-math token is produced.
+
+## Closing delimiter outside a list item
+
+- The opener is inside this list item:
+
+  $$
+  x + y
+
+$$
+
+This paragraph is outside the list.
+
+Expected: The preview math rule does not use the outdented `$$` as the closing delimiter and does not consume the paragraph outside the list.
