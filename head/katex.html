@@ -5,7 +5,6 @@
   crossorigin="anonymous"
 />
 <script
-  defer
   src="https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.js"
   integrity="sha384-ykMNcWQhhTUb0YV9SPpPUFURHZ+tWmubkakGBP+OgNK/UXdO2gtzglWx0Rj9hnO3"
   crossorigin="anonymous"
@@ -17,20 +16,283 @@
   }
 </style>
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-    if (!window.katex || typeof window.katex.render !== "function") {
-      return;
+  (function () {
+    "use strict";
+
+    var katexStylesheetUrl =
+      "https://cdn.jsdelivr.net/npm/katex@0.18.4/dist/katex.min.css";
+    var katexStylesheetIntegrity =
+      "sha384-u1zONI5gPXUx0UKI62c75/zww972y0v2rSK5ZYlVdS6xEuWDeZWUI66v6t1gvlXJ";
+    var configuredPreviewFrames = new WeakSet();
+
+    function renderMath(root) {
+      if (!root || !window.katex || typeof window.katex.render !== "function") {
+        return;
+      }
+
+      root
+        .querySelectorAll(
+          ".bookstack-katex-inline:not([data-bookstack-katex-rendered]), " +
+            ".bookstack-katex-display:not([data-bookstack-katex-rendered])",
+        )
+        .forEach(function (element) {
+          element.setAttribute("data-bookstack-katex-rendered", "");
+
+          window.katex.render(element.textContent || "", element, {
+            displayMode: element.classList.contains("bookstack-katex-display"),
+            throwOnError: false,
+            strict: "warn",
+            trust: false,
+          });
+        });
     }
 
-    document
-      .querySelectorAll(".bookstack-katex-inline, .bookstack-katex-display")
-      .forEach(function (element) {
-        window.katex.render(element.textContent || "", element, {
-          displayMode: element.classList.contains("bookstack-katex-display"),
+    function isEscaped(source, position) {
+      var backslashes = 0;
+
+      for (
+        var index = position - 1;
+        index >= 0 && source.charAt(index) === "\\";
+        index--
+      ) {
+        backslashes++;
+      }
+
+      return backslashes % 2 === 1;
+    }
+
+    function inlineMathRule(state, silent) {
+      var source = state.src;
+      var opening = state.pos;
+
+      if (
+        source.charAt(opening) !== "$" ||
+        isEscaped(source, opening) ||
+        source.charAt(opening - 1) === "$" ||
+        source.charAt(opening + 1) === "$"
+      ) {
+        return false;
+      }
+
+      for (var closing = opening + 1; closing < state.posMax; closing++) {
+        var character = source.charAt(closing);
+
+        if (character === "\n" || character === "\r") {
+          break;
+        }
+
+        if (
+          character !== "$" ||
+          isEscaped(source, closing) ||
+          source.charAt(closing - 1) === "$" ||
+          source.charAt(closing + 1) === "$"
+        ) {
+          continue;
+        }
+
+        if (silent) {
+          return true;
+        }
+
+        var token = state.push("bookstack_katex_inline", "", 0);
+        token.content = source.slice(opening + 1, closing);
+        token.markup = "$";
+        state.pos = closing + 1;
+
+        return true;
+      }
+
+      return false;
+    }
+
+    function lineSource(state, line) {
+      return state.src.slice(
+        state.bMarks[line] + state.tShift[line],
+        state.eMarks[line],
+      );
+    }
+
+    function displayMathRule(state, startLine, endLine, silent) {
+      var start = state.bMarks[startLine] + state.tShift[startLine];
+      var line = state.src.slice(start, state.eMarks[startLine]).trim();
+
+      if (line.slice(0, 2) !== "$$" || line.slice(0, 3) === "$$$") {
+        return false;
+      }
+
+      var isMultiline = line === "$$";
+      var isSingleLine = line.length >= 4 && line.slice(-2) === "$$";
+
+      if (!isMultiline && !isSingleLine) {
+        return false;
+      }
+
+      if (isSingleLine) {
+        if (silent) {
+          return true;
+        }
+
+        var singleLineToken = state.push("bookstack_katex_display", "", 0);
+        singleLineToken.block = true;
+        singleLineToken.markup = "$$";
+        singleLineToken.map = [startLine, startLine + 1];
+        singleLineToken.content = line.slice(2, -2);
+        singleLineToken.meta = { closed: true };
+        state.line = startLine + 1;
+
+        return true;
+      }
+
+      var nextLine = startLine + 1;
+
+      while (nextLine < endLine) {
+        if (lineSource(state, nextLine).trim() === "$$") {
+          break;
+        }
+
+        nextLine++;
+      }
+
+      if (nextLine >= endLine) {
+        return false;
+      }
+
+      if (silent) {
+        return true;
+      }
+
+      var contentLines = [];
+      for (
+        var contentLine = startLine + 1;
+        contentLine < nextLine;
+        contentLine++
+      ) {
+        contentLines.push(lineSource(state, contentLine));
+      }
+
+      var token = state.push("bookstack_katex_display", "", 0);
+      token.block = true;
+      token.markup = "$$";
+      token.map = [startLine, nextLine + 1];
+      token.content = contentLines.join("\n");
+      token.meta = { closed: true };
+      state.line = nextLine + 1;
+
+      return true;
+    }
+
+    function renderPreviewMath(markdownIt, tex, displayMode) {
+      if (!window.katex || typeof window.katex.renderToString !== "function") {
+        return markdownIt.utils.escapeHtml(tex);
+      }
+
+      try {
+        return window.katex.renderToString(tex, {
+          displayMode: displayMode,
           throwOnError: false,
           strict: "warn",
           trust: false,
         });
-      });
-  });
+      } catch (error) {
+        return markdownIt.utils.escapeHtml(tex);
+      }
+    }
+
+    function installPreviewMarkdownRules(markdownIt) {
+      if (!markdownIt || markdownIt.__bookstackKatexInstalled) {
+        return;
+      }
+
+      markdownIt.__bookstackKatexInstalled = true;
+      markdownIt.inline.ruler.before(
+        "escape",
+        "bookstack_katex_inline",
+        inlineMathRule,
+        { alt: ["text"] },
+      );
+      markdownIt.block.ruler.before(
+        "paragraph",
+        "bookstack_katex_display",
+        displayMathRule,
+        { alt: ["paragraph", "reference", "blockquote", "list"] },
+      );
+
+      markdownIt.renderer.rules.bookstack_katex_inline = function (
+        tokens,
+        index,
+      ) {
+        return (
+          '<span class="bookstack-katex-inline" data-bookstack-katex-rendered>' +
+          renderPreviewMath(markdownIt, tokens[index].content, false) +
+          "</span>"
+        );
+      };
+
+      markdownIt.renderer.rules.bookstack_katex_display = function (
+        tokens,
+        index,
+      ) {
+        var token = tokens[index];
+        return (
+          '<div class="bookstack-katex-display" data-bookstack-katex-rendered>' +
+          renderPreviewMath(markdownIt, token.content, true) +
+          "</div>\n"
+        );
+      };
+    }
+
+    function addPreviewStyles(documentNode) {
+      if (!documentNode || !documentNode.head) {
+        return;
+      }
+
+      if (
+        !documentNode.head.querySelector("link[data-bookstack-katex-preview]")
+      ) {
+        var link = documentNode.createElement("link");
+        link.rel = "stylesheet";
+        link.href = katexStylesheetUrl;
+        link.integrity = katexStylesheetIntegrity;
+        link.crossOrigin = "anonymous";
+        link.setAttribute("data-bookstack-katex-preview", "");
+        documentNode.head.appendChild(link);
+      }
+
+      if (
+        !documentNode.head.querySelector("style[data-bookstack-katex-preview]")
+      ) {
+        var style = documentNode.createElement("style");
+        style.setAttribute("data-bookstack-katex-preview", "");
+        style.textContent =
+          ".bookstack-katex-display{overflow-x:auto;overflow-y:hidden;}";
+        documentNode.head.appendChild(style);
+      }
+    }
+
+    function configurePreviewFrame(frame) {
+      if (!frame || configuredPreviewFrames.has(frame)) {
+        return;
+      }
+
+      configuredPreviewFrames.add(frame);
+
+      function ensureStyles() {
+        addPreviewStyles(frame.contentDocument);
+      }
+
+      frame.addEventListener("load", ensureStyles);
+      ensureStyles();
+    }
+
+    window.addEventListener("editor-markdown::setup", function (event) {
+      var detail = event.detail || {};
+
+      installPreviewMarkdownRules(detail.markdownIt);
+      configurePreviewFrame(detail.displayEl);
+    });
+
+    document.addEventListener("DOMContentLoaded", function () {
+      renderMath(document);
+    });
+  })();
 </script>
