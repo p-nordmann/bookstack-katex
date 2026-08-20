@@ -15,7 +15,7 @@ The module uses BookStack's installed `league/commonmark` package. It has no Com
 From the BookStack installation directory, run:
 
 ```sh
-php artisan bookstack:install-module /absolute/path/to/bookstack-katex-0.1.0.zip
+php artisan bookstack:install-module /absolute/path/to/bookstack-katex-0.1.1.zip
 ```
 
 If the instance has no active theme, BookStack's installer offers to create one. If a module with the same name already exists, choose the installer's replace option to update it.
@@ -61,7 +61,7 @@ Display delimiters must be on their own line, with optional surrounding spaces o
 ## Deferred edge cases
 
 - Markdown editor live preview can show the raw delimiters until the page is saved and processed by BookStack's server-side CommonMark pipeline.
-- WYSIWYG editing, server-side KaTeX rendering, and math rendering in exported documents are not included in version 0.1.0.
+- WYSIWYG editing, server-side KaTeX rendering, and math rendering in exported documents are not included in version 0.1.1.
 - Delimiter nesting and advanced TeX environments which need extra KaTeX extensions are intentionally outside the MVP.
 
 ## Manual regression checklist
@@ -77,4 +77,8 @@ Display delimiters must be on their own line, with optional surrounding spaces o
 
 ## Compatibility assumptions
 
-Version 0.1.0 relies only on BookStack's `commonmark_environment_configure` theme event and League CommonMark 2.x extension interfaces present in BookStack 26.05.3. Future BookStack releases which change those interfaces may require a module update.
+Version 0.1.1 relies only on BookStack's `commonmark_environment_configure` theme event and League CommonMark 2.x extension interfaces present in BookStack 26.05.3. Future BookStack releases which change those interfaces may require a module update.
+
+## Changelog
+
+- 0.1.1: Correct the `InlineParserContext` namespace for League CommonMark 2.8.

@@ -1,5 +1,5 @@
 {
     "name": "BookStack KaTeX",
     "description": "Adds minimal CommonMark inline and display math rendering with KaTeX.",
-    "version": "0.1.0"
+    "version": "0.1.1"
 }
